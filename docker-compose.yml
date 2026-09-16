@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  qwazon-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+    environment:
+      - QWAZON_ALLOW_HF_DOWNLOAD=0
+    restart: unless-stopped
+
+  qwazon-demo:
+    build: .
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+    command: python demo/app.py --host 0.0.0.0 --port 7860 --checkpoint checkpoints/qwazon-nano
+    depends_on:
+      - qwazon-api

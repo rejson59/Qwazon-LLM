@@ -1,4 +1,4 @@
-# Qwazon v0.1 — zależności złotego środka
+# Qwazon v0.3 — zależności złotego środka
 # Instalacja: pip install -r requirements.txt
 # Dla CPU-only ziemniaka: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
@@ -12,13 +12,17 @@ numpy>=1.24.0
 tqdm
 pyyaml
 psutil
+fastapi
+uvicorn
+gradio>=4.0
 
-# Opcjonalne (dla treningu / kwantyzacji / demo)
-# flash-attn — tylko GPU, przyspiesza 2-3x
-# bitsandbytes — QLoRA / 8-bit AdamW
-# gradio — demo chat
-# gguf — export do llama.cpp / Ollama
-# sentencepiece — własny tokenizer PL
+# Opcjonalne (przyspieszają ziemniaka)
+# bitsandbytes — 8-bit AdamW, QLoRA (pip install bitsandbytes)
+# flash-attn — GPU 2-3x szybciej (pip install flash-attn)
+# gguf — export do llama.cpp/Ollama (pip install gguf)
+# onnx — export do ONNX Runtime
 
 # Dev:
 pytest
+httpx
+

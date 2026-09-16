@@ -1,12 +1,12 @@
 [project]
 name = "qwazon-llm"
-version = "0.1.0"
+version = "0.3.0"
 description = "Qwazon — złoty środek między wydajnością a inteligencją. LLM na ziemniaka, mądry jak duży."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [{name = "Qwazon Team"}]
-keywords = ["llm", "ai", "code", "polish", "moe", "efficient"]
+keywords = ["llm", "ai", "code", "polish", "moe", "efficient", "fastapi", "lora", "dpo"]
 dependencies = [
   "torch>=2.1.0",
   "transformers>=4.38.0",
@@ -15,12 +15,17 @@ dependencies = [
   "tqdm",
   "pyyaml",
   "psutil",
+  "fastapi",
+  "uvicorn",
+  "gradio>=4.0",
 ]
 [project.optional-dependencies]
 train = ["datasets>=2.16.0", "accelerate>=0.27.0", "safetensors>=0.4.0", "bitsandbytes"]
 demo = ["gradio>=4.0"]
+api = ["fastapi", "uvicorn", "httpx"]
+lora = ["bitsandbytes"]
 gguf = ["gguf>=0.9.0"]
-all = ["datasets>=2.16.0", "accelerate>=0.27.0", "safetensors>=0.4.0", "gradio>=4.0", "gguf>=0.9.0"]
+all = ["datasets>=2.16.0", "accelerate>=0.27.0", "safetensors>=0.4.0", "gradio>=4.0", "gguf>=0.9.0", "fastapi", "uvicorn", "bitsandbytes"]
 
 [project.scripts]
 qwazon-train = "scripts.train:main"
