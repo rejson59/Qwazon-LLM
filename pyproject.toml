@@ -1,0 +1,34 @@
+[project]
+name = "qwazon-llm"
+version = "0.1.0"
+description = "Qwazon — złoty środek między wydajnością a inteligencją. LLM na ziemniaka, mądry jak duży."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Qwazon Team"}]
+keywords = ["llm", "ai", "code", "polish", "moe", "efficient"]
+dependencies = [
+  "torch>=2.1.0",
+  "transformers>=4.38.0",
+  "tokenizers>=0.15.0",
+  "numpy>=1.24.0",
+  "tqdm",
+  "pyyaml",
+  "psutil",
+]
+[project.optional-dependencies]
+train = ["datasets>=2.16.0", "accelerate>=0.27.0", "safetensors>=0.4.0", "bitsandbytes"]
+demo = ["gradio>=4.0"]
+gguf = ["gguf>=0.9.0"]
+all = ["datasets>=2.16.0", "accelerate>=0.27.0", "safetensors>=0.4.0", "gradio>=4.0", "gguf>=0.9.0"]
+
+[project.scripts]
+qwazon-train = "scripts.train:main"
+qwazon-generate = "scripts.generate:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

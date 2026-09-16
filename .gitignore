@@ -1,0 +1,26 @@
+# Qwazon
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# checkpoints & data — duże wagi nie do gita (użyj HF Hub / S3), ale configi tak
+checkpoints/**/pytorch_model.bin
+checkpoints/**/model.safetensors
+checkpoints/**/**/*.bin
+data/*.jsonl
+data/*.bin
+*.gguf
+*.safetensors
+# *.bin — nie ignorujemy globalnie, bo małe testowe mogą być potrzebne; ignoruj tylko w checkpointach
+
+# demo
+*.log
+wandb/
+.nox/
+.pytest_cache/
+.gradio/
