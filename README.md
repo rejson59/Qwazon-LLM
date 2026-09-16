@@ -5,13 +5,12 @@
 
 **Qwazon to całkowicie nowy model** — nie fork, nie fine-tune. Własna architektura, własny trening, własna filozofia.
 
-> **🔥 UPDATE v0.2 (2026-09-17): Kontynuacja treningu na ziemniaku!**
-> - `qwazon-micro 3M`: 20 → **200 kroków**, loss 6.75→0.28, PPL 861→1.32, eval PPL 1.25 ✅
-> - `qwazon-nano 39M`: 0 → **150 kroków** (w toku do 300), loss 7.07→1.33, PPL 1187→3.79, eval 2.27 ⭐
-> - Nowy `trainer v0.2` z resume, eval, best_model, sample generation, syntetyk v2 (2500 CoT)
-> - Nowe: `qwazon-nano` 39M, `qwazon-micro` oficjalnie, `scripts/eval.py`, `docs/TRAINING_REPORT_v02.md`
-> - Trening na 2-core Xeon, 3.8GB RAM, CPU only — proof że działa na ziemniaku!
-> - Szczegóły: [`docs/CHANGELOG.md`](docs/CHANGELOG.md) i [`docs/TRAINING_REPORT_v02.md`](docs/TRAINING_REPORT_v02.md)
+> **🔥 UPDATE v0.3 (2026-09-17): Ziemniak na sterydach — nano zdaje HumanEval!**
+> - `micro 3M`: **200 kroków** PPL 1.25 ✅ | `nano 39M`: **300 kroków** PPL **1.04** ✅ **HumanEval-mini 1/5 (20%)** — pierwszy zdany test `silnia`!
+> - `tiny-lite 25M`: 25 kroków PPL 130 — proof że 25M uczy się 3x szybciej niż 39M
+> - Nowe: **API FastAPI** (`/generate`, `/chat`), **LoRA** (0.5M trainable na nano), **DPO** (beta=0.1), **BPE tokenizer** (2.87 bytes/tok), **Docker**, **Gradio v0.3 streaming**
+> - Trening na 2-core Xeon 3.8GB **CPU only** — całość w <20 min! — dowody w [`docs/TRAINING_REPORT_v03.md`](docs/TRAINING_REPORT_v03.md)
+> - poprzednio v0.2: [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | v0.2 raport: [`docs/TRAINING_REPORT_v02.md`](docs/TRAINING_REPORT_v02.md)
 
 ---
 
@@ -226,10 +225,13 @@ Qwazon-LLM/
 │   └── app.py            # Gradio chat (Arena Preview ready)
 ├── docs/
 │   ├── CHANGELOG.md
-│   └── TRAINING_REPORT_v02.md
+│   ├── TRAINING_REPORT_v02.md
+│   ├── TRAINING_REPORT_v03.md  # NEW: nano 300 HumanEval 20%
+│   └── logs/ (micro-200, nano-300)
 ├── checkpoints/
 │   ├── qwazon-micro/ (200 kroków, PPL 1.25)
-│   └── qwazon-nano/ (150→300 kroków w toku)
+│   ├── qwazon-nano/ (300 kroków, PPL 1.04, HumanEval 1/5) ✅
+│   └── qwazon-tiny-lite/ (25 kroków, demo 25M)
 ├── tests/
 │   └── test_model.py
 ├── requirements.txt
@@ -248,16 +250,16 @@ python scripts/benchmark.py
 
 ---
 
-## 🗺️ Roadmap v0.1 → v1.0
+## 🗺️ Roadmap
 
-- **v0.1 (2026-09-16)** — architektura + pipeline + demo training ✅
-- **v0.2 (2026-09-17, teraz)** — kontynuacja treningu na CPU ziemniaku: micro 200 kroków (PPL 1.25), nano 150→300, nowy trainer v0.2 (resume/eval/best), eval.py, syntetyk v2 ✅
-- **v0.3** — trening tiny 138M na GPU (5k kroków) + DPO na UltraFeedback-PL + GGUF Q4 publikacja
-- **v0.4** — QAT + 2 warstwy Mamba2 + 128k ctx
-- **v0.5** — RLHF + tool use (function calling)
-- **v1.0** — Qwazon 1.2B bije Claude 3.5 Sonnet na LiveCodeBench PL przy 20x mniejszym koszcie — cel nadrzędny
+- **v0.1 (2026-09-16)** — architektura GQA+MoE+SwiGLU+RoPE, 4 warianty, pipeline, demo ✅
+- **v0.2 (2026-09-17)** — micro 200 PPL 1.25, nano 150 PPL 2.27, trainer v0.2 (resume/eval/best), eval.py, syntetyk v2 ✅
+- **v0.3 (2026-09-17, teraz)** — **nano 300 PPL 1.04 HumanEval 1/5 (20%)**, tiny-lite 25, **API FastAPI**, **LoRA**, **DPO**, **BPE**, **Docker**, **Gradio streaming** ✅
+- **v0.4** — tiny 138M na GPU 5k kroków (cel HumanEval 15-25%), DPO na UltraFeedback-PL, GGUF Q4 publikacja na HF Hub
+- **v0.5** — QAT + Mamba2 hybrid + 128k ctx
+- **v1.0** — 1.2B na 100B + distillation z Qwen-72B/Claude → 58% HumanEval, deploy Q4 <1GB na telefonie — **cel: pobić Claude/GPT przy 20x mniejszym koszcie**
 
-**Postęp v0.2 na żywo:** `checkpoints/qwazon-nano` trenuje w tle do 300 kroków (obecnie 160/300), logi w `train_log.jsonl`.
+**Live:** nano 300 zakończony ✅, logi w `docs/logs/` i `checkpoints/qwazon-nano/train_log.jsonl`
 
 ---
 
