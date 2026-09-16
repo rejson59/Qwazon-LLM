@@ -1,5 +1,5 @@
 # Qwazon Micro — ultra lekki do szybkiego demo treningu na CPU (testy)
-# 4 warstwy, 256 hidden, 2M param — trening 20 kroków w <30s
+# 4 warstwy, 256 hidden, 3M param — trening 20 kroków w <30s, v0.2 200 kroków
 model:
   model_name: qwazon-micro
   hidden_size: 256
@@ -17,7 +17,11 @@ training:
   output_dir: checkpoints/qwazon-micro
   max_seq_length: 64
   learning_rate: 5.0e-4
-  max_steps: 20
+  max_steps: 200
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
   bf16: false
+  eval_steps: 20
+  save_steps: 50
+  logging_steps: 10
+  sample_steps: 40

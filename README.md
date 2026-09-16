@@ -1,9 +1,17 @@
 # 🥔 Qwazon LLM — Złoty Środek
 
 > **Mały że działa na ziemniaku, mądry że kodzi lepiej niż giganci.**  
-> Pierwsza wersja (v0.1) polskiego LLM-a zoptymalizowanego pod Pareto-frontier: *minimalne zużycie mocy ↔ maksymalna inteligencja*.
+> Polski LLM zoptymalizowany pod Pareto-frontier: *minimalne zużycie mocy ↔ maksymalna inteligencja*.
 
-**Qwazon v0.1 to całkowicie nowy model** — nie fork, nie fine-tune. Własna architektura, własny trening, własna filozofia.
+**Qwazon to całkowicie nowy model** — nie fork, nie fine-tune. Własna architektura, własny trening, własna filozofia.
+
+> **🔥 UPDATE v0.2 (2026-09-17): Kontynuacja treningu na ziemniaku!**
+> - `qwazon-micro 3M`: 20 → **200 kroków**, loss 6.75→0.28, PPL 861→1.32, eval PPL 1.25 ✅
+> - `qwazon-nano 39M`: 0 → **150 kroków** (w toku do 300), loss 7.07→1.33, PPL 1187→3.79, eval 2.27 ⭐
+> - Nowy `trainer v0.2` z resume, eval, best_model, sample generation, syntetyk v2 (2500 CoT)
+> - Nowe: `qwazon-nano` 39M, `qwazon-micro` oficjalnie, `scripts/eval.py`, `docs/TRAINING_REPORT_v02.md`
+> - Trening na 2-core Xeon, 3.8GB RAM, CPU only — proof że działa na ziemniaku!
+> - Szczegóły: [`docs/CHANGELOG.md`](docs/CHANGELOG.md) i [`docs/TRAINING_REPORT_v02.md`](docs/TRAINING_REPORT_v02.md)
 
 ---
 
@@ -193,26 +201,35 @@ qwazon-1.2b Q4 na Snapdragon 8 Gen 2: ~12 tok/s
 ```
 Qwazon-LLM/
 ├── qwazon/               # core
-│   ├── config.py         # QwazonConfig + 4 warianty
+│   ├── config.py         # QwazonConfig + 6 wariantów (micro/nano/tiny/small/1.2b/base)
 │   ├── model.py          # QwazonModel (GQA+MoE+RMSNorm+RoPE)
-│   ├── tokenizer.py      # wrapper HF + fallback
-│   ├── trainer.py        # pipeline z distillation
+│   ├── tokenizer.py      # wrapper HF + byte-level fallback (PL znaki, 0.5s)
+│   ├── trainer.py        # pipeline v0.2 (resume, eval, best, sample, 8-bit AdamW)
 │   ├── inference.py      # KV-cache + streaming + benchmark
 │   └── quantize.py       # GGUF / AWQ helper
 ├── configs/              # YAML dla każdego wariantu
-│   ├── qwazon_tiny.yaml
-│   ├── qwazon_small.yaml
+│   ├── qwazon_micro.yaml   # 3M  — demo 30s
+│   ├── qwazon_nano.yaml    # 39M — ziemniak-wojownik
+│   ├── qwazon_tiny.yaml    # 138M
+│   ├── qwazon_small.yaml   # 651M
 │   ├── qwazon_medium.yaml  # 1.2b — główny
-│   └── qwazon_base.yaml
+│   └── qwazon_base.yaml    # 2.87B
 ├── scripts/
-│   ├── train.py          # entrypoint treningu
+│   ├── train.py          # entrypoint v0.2 (--resume, --eval_steps)
 │   ├── generate.py       # inference CLI + chat
-│   ├── benchmark.py      # porównanie wariantów
+│   ├── benchmark.py      # porównanie wariantów (ziemniak)
+│   ├── eval.py           # NEW: HumanEval-mini + PL QA + PPL
 │   └── export_gguf.py    # Ollama / llama.cpp
 ├── data/
-│   └── prepare.py        # budowa train.jsonl
+│   └── prepare.py        # budowa train.jsonl (syntetyk v2 2500 CoT)
 ├── demo/
 │   └── app.py            # Gradio chat (Arena Preview ready)
+├── docs/
+│   ├── CHANGELOG.md
+│   └── TRAINING_REPORT_v02.md
+├── checkpoints/
+│   ├── qwazon-micro/ (200 kroków, PPL 1.25)
+│   └── qwazon-nano/ (150→300 kroków w toku)
 ├── tests/
 │   └── test_model.py
 ├── requirements.txt
@@ -233,11 +250,14 @@ python scripts/benchmark.py
 
 ## 🗺️ Roadmap v0.1 → v1.0
 
-- **v0.1 (teraz)** — architektura + pipeline + demo training (ten release) ✅
-- **v0.2** — pełny trening 100B na GPU + publikacja wag HF + GGUF + eval HumanEval-PL 58%+
-- **v0.3** — QAT (quantization-aware training) + 2 warstwy Mamba2 + 128k ctx
-- **v0.5** — RLHF na polskim code feedback + tool use (function calling)
+- **v0.1 (2026-09-16)** — architektura + pipeline + demo training ✅
+- **v0.2 (2026-09-17, teraz)** — kontynuacja treningu na CPU ziemniaku: micro 200 kroków (PPL 1.25), nano 150→300, nowy trainer v0.2 (resume/eval/best), eval.py, syntetyk v2 ✅
+- **v0.3** — trening tiny 138M na GPU (5k kroków) + DPO na UltraFeedback-PL + GGUF Q4 publikacja
+- **v0.4** — QAT + 2 warstwy Mamba2 + 128k ctx
+- **v0.5** — RLHF + tool use (function calling)
 - **v1.0** — Qwazon 1.2B bije Claude 3.5 Sonnet na LiveCodeBench PL przy 20x mniejszym koszcie — cel nadrzędny
+
+**Postęp v0.2 na żywo:** `checkpoints/qwazon-nano` trenuje w tle do 300 kroków (obecnie 160/300), logi w `train_log.jsonl`.
 
 ---
 

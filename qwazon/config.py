@@ -119,6 +119,36 @@ class QwazonConfig:
 
 # --- Predefiniowane warianty: Złoty środek w różnych rozmiarach ---
 QWAZON_VARIANTS = {
+    # Mikro do szybkiego demo na CPU: 3M, 4 warstwy, trening 20 kroków w 30s
+    "qwazon-micro": QwazonConfig(
+        model_name="qwazon-micro",
+        hidden_size=256,
+        intermediate_size=512,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        vocab_size=1024,
+        max_position_embeddings=512,
+        rope_theta=10000.0,
+        use_moe=False,
+        sliding_window=256,
+        use_gradient_checkpointing=False,
+    ),
+    # Nano: prawdziwy ziemniak-wojownik 30M, 12 warstw, uczy się kodzić sensownie
+    "qwazon-nano": QwazonConfig(
+        model_name="qwazon-nano",
+        hidden_size=512,
+        intermediate_size=1376,
+        num_hidden_layers=12,
+        num_attention_heads=8,
+        num_key_value_heads=4,
+        vocab_size=8192,
+        max_position_embeddings=4096,
+        rope_theta=100000.0,
+        use_moe=False,
+        sliding_window=1024,
+        use_gradient_checkpointing=True,
+    ),
     # Ziemniak absolutny: działa na Raspberry Pi 4, telefonie, laptopie z 4GB RAM
     "qwazon-tiny": QwazonConfig(
         model_name="qwazon-tiny",
