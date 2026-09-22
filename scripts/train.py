@@ -37,6 +37,8 @@ def main():
     p.add_argument("--eval_steps", type=int, default=None)
     p.add_argument("--save_steps", type=int, default=None)
     p.add_argument("--logging_steps", type=int, default=None)
+    p.add_argument("--tokenizer", type=str, default=None,
+                   help="ścieżka do wytrenowanego BPE (np. tokenizer-qwazon). Bez tego: byte-level fallback")
     args = p.parse_args()
 
     # config
@@ -118,7 +120,7 @@ def main():
         train_args.train_file = None
 
     print("="*60)
-    print(f"QWAZON TRENING v0.2 — {config.model_name}")
+    print(f"QWAZON TRENING v0.4 — {config.model_name}")
     print(f"  {config.describe()}")
     print(f"  Params: {config.num_parameters_approx/1e6:.1f}M total")
     print(f"  Output: {train_args.output_dir}")
@@ -126,7 +128,16 @@ def main():
     print(f"  Eval co {train_args.eval_steps}, log co {train_args.logging_steps}")
     print("="*60)
 
-    tokenizer = QwazonTokenizer(vocab_size=config.vocab_size)
+    if args.tokenizer:
+        tokenizer = QwazonTokenizer(pretrained=args.tokenizer, vocab_size=config.vocab_size)
+        tv = len(tokenizer)
+        print(f"  Tokenizer: własny BPE z {args.tokenizer} (vocab {tv})")
+        if tv > config.vocab_size:
+            print(f"  ⚠️  vocab tokenizera {tv} > model {config.vocab_size} → powiększam embeddingi modelu")
+            config.vocab_size = tv
+    else:
+        tokenizer = QwazonTokenizer(vocab_size=config.vocab_size)
+        print(f"  Tokenizer: byte-level fallback (vocab {config.vocab_size})")
     train(config, train_args, tokenizer=tokenizer)
 
 if __name__ == "__main__":

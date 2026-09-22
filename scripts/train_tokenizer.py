@@ -58,8 +58,9 @@ def train_tokenizer(texts, vocab_size=32768, out_dir="tokenizer-qwazon"):
 
     os.makedirs(out_dir, exist_ok=True)
     tok.save(os.path.join(out_dir, "tokenizer.json"))
-    # zapisz config dla qwazon
+    # zapisz config dla qwazon (tokenizer_class potrzebny żeby AutoTokenizer mógł to wczytać)
     tok_config = {
+        "tokenizer_class": "PreTrainedTokenizerFast",
         "vocab_size": vocab_size,
         "bos_token": "<bos>", "bos_token_id": 1,
         "eos_token": "<eos>", "eos_token_id": 2,
@@ -113,10 +114,10 @@ def main():
             print(f"HF failed: {e}, fallback syntetyk")
 
     if not texts:
-        # syntetyk v2
+        # syntetyk v4
         from qwazon.trainer import build_synthetic_texts
         texts = build_synthetic_texts(args.limit)
-        print(f"Używam syntetyku v2: {len(texts)} tekstów")
+        print(f"Używam syntetyku v4: {len(texts)} tekstów")
 
     # dodatkowo PL wiki sample jeśli mało
     # ensure at least limit

@@ -96,8 +96,11 @@ def eval_checkpoint(ckpt, max_new=64, full=False):
         from torch.utils.data import DataLoader
         from qwazon.trainer import build_synthetic_texts
         texts = build_synthetic_texts(100)[-10:]  # 10 eval
-        from qwazon.tokenizer import QwazonTokenizer
-        tok = QwazonTokenizer(vocab_size=cfg.vocab_size)
+        # WAŻNE: używamy TEGO SAMEGO tokenizera co model (z checkpointu).
+        # Wcześniej tworzono tu nowy QwazonTokenizer() → byte-level fallback,
+        # więc model wytrenowany na BPE dostawał inne id tokenów i PPL była bez sensu.
+        tok = pipe.tokenizer
+        print(f"  Tokenizer: {'BPE' if getattr(tok, 'hf_tokenizer', None) is not None else 'byte-level'} (vocab {len(tok)})")
         ds = TextDataset(texts, tok, max_len=128)
         loader = DataLoader(ds, batch_size=2, collate_fn=lambda b: collate_fn(b, pad_token_id=cfg.pad_token_id))
         model = pipe.model
@@ -107,22 +110,29 @@ def eval_checkpoint(ckpt, max_new=64, full=False):
         with torch.no_grad():
             for batch in loader:
                 input_ids = batch["input_ids"].to(pipe.device)
-                # ensure same dtype? model is fp32/bf16
-                out = model(input_ids=input_ids, labels=input_ids)
-                # out loss to średnia na token, pomnóż
-                total_loss += out["loss"].item() * input_ids.numel()
-                total_tok += input_ids.numel()
-                if total_tok > 20000:
-                    break
-        ppl = math.exp(min(total_loss/total_tok, 10))
-        print(f"  Eval loss: {total_loss/total_tok:.4f} | PPL: {ppl:.2f}")
+                labels = batch["labels"].to(pipe.device)
+                out = model(input_ids=input_ids, labels=labels)
+                # loss to średnia po ważnych (nie -100) tokenach po przesunięciu
+                n_valid = int((labels[..., 1:] != -100).sum().item())
+                total_loss += out["loss"].item() * n_valid
+                total_tok += n_valid
+        avg_loss = total_loss / max(1, total_tok)
+        ppl = math.exp(min(avg_loss, 20))
+        # bits/byte — jedyna metryka porównywalna między różnymi tokenizerami
+        total_bytes = 0
+        for t in texts:
+            ids = tok.encode(t)[:128]
+            total_bytes += len(tok.decode(ids).encode("utf-8"))
+        bits_per_byte = (total_loss / math.log(2)) / max(1, total_bytes)
+        print(f"  Eval loss: {avg_loss:.4f} | PPL: {ppl:.2f} | tokenów: {total_tok}")
+        print(f"  bits/byte: {bits_per_byte:.3f} (losowy model = 8.0, byte-level ~5.1, im mniej tym lepiej)")
         # interpretacja
-        if ppl < 100:
+        if bits_per_byte < 2.0:
             print("  ✅ Bardzo dobrze (model już kuma strukturę kodu/PL)")
-        elif ppl < 250:
-            print("  ⚠️ Średnio — wytrenuj dłużej (v0.2 trening w toku)")
+        elif bits_per_byte < 3.5:
+            print("  ⚠️ Średnio — wytrenuj dłużej")
         else:
-            print("  ❌ Wysoka PPL — model świeży po init, potrzebuje więcej kroków")
+            print("  ❌ Wysoka entropia — model świeży po init, potrzebuje więcej kroków")
     except Exception as e:
         print(f"  (skip ppl) {e}")
 

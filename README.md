@@ -7,14 +7,21 @@
 
 > **📖 Dla laika: przeczytaj [`docs/PROSTY_OPIS.md`](docs/PROSTY_OPIS.md) — bez żargonu, po polsku!**
 
-> **🔥 UPDATE v0.4 (2026-09-22): 50 zadań, YaRN 128k, lepsza kwantyzacja!**
+> **🔥 UPDATE v0.4 (2026-09-22): 50 zadań, własny BPE, YaRN 128k + naprawiony eval**
 > - **Dane v4**: 50 zadań (vs 25) — bugfix, review, refactor, CoT, PL — `data/synthetic_v4.py`
-> - **Model v0.4**: YaRN 128k kontekstu, lepsze MoE, QAT-ready — `qwazon/model.py`
-> - **Kwantyzacja v0.4**: real int8 + symulacja Q4 z MSE — `qwazon/quantize.py`
-> - **Prosty opis**: [`docs/PROSTY_OPIS.md`](docs/PROSTY_OPIS.md)
+> - **Własny BPE**: 1578 tokenów, **4.25 bytes/tok** (byte-level = 1.0) → `scripts/train.py --tokenizer`
+> - **Model v0.4**: YaRN 128k kontekstu, QAT-ready — `qwazon/model.py`
+> - **Kwantyzacja**: real int8 + symulacja Q4 z MSE — `qwazon/quantize.py`
+> - **🐛 Fix**: `eval.py` liczył PPL innym tokenizerem niż model (PPL 22026 → 227.68) + nowa metryka **bits/byte**
+> - **Zmierzone**: byte-level 300 kroków = 5.188 bits/byte | **BPE 500 kroków = 2.149 bits/byte** (2.4x lepiej)
+> - **Testy 5/5** ✅ — szczegóły: [`docs/TRAINING_REPORT_v04.md`](docs/TRAINING_REPORT_v04.md) · [`docs/PROSTY_OPIS.md`](docs/PROSTY_OPIS.md)
+>
+> **⚠️ Uczciwie:** Qwazon **jeszcze nie zdaje** HumanEval-mini (0/5). Wynik „1/5 (20%)" z v0.3
+> pochodził z korpusu 25 zadań, gdzie `train PPL 1.058 ≈ eval PPL 1.044` — to była **memorizacja**,
+> nie generalizacja. Tamtych wag nie da się już zweryfikować (`*.bin` poza gitem).
 
-> **🔥 v0.3 (2026-09-17): Ziemniak na sterydach — nano zdaje HumanEval!**
-> - `micro 3M`: **200 kroków** PPL 1.25 ✅ | `nano 39M`: **300 kroków** PPL **1.04** ✅ **HumanEval-mini 1/5 (20%)** — pierwszy zdany test `silnia`!
+> **🔥 v0.3 (2026-09-17): infrastruktura produkcyjna**
+> - `micro 3M`: **200 kroków** PPL 1.25 | `nano 39M`: **300 kroków** PPL **1.04** — ⚠️ patrz korekta wyżej (memorizacja 25 zadań)
 > - `tiny-lite 25M`: 25 kroków PPL 130 — proof że 25M uczy się 3x szybciej niż 39M
 > - Nowe: **API FastAPI** (`/generate`, `/chat`), **LoRA** (0.5M trainable na nano), **DPO** (beta=0.1), **BPE tokenizer** (2.87 bytes/tok), **Docker**, **Gradio v0.3 streaming**
 > - Trening na 2-core Xeon 3.8GB **CPU only** — całość w <20 min! — dowody w [`docs/TRAINING_REPORT_v03.md`](docs/TRAINING_REPORT_v03.md)
