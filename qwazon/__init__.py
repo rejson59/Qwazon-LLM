@@ -16,5 +16,5 @@ try:
 except ImportError:
     DPOTrainer = None
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __all__ = ["QwazonConfig", "QWAZON_VARIANTS", "get_config", "QwazonModel", "QwazonForCausalLM", "LoRAConfig", "apply_lora", "DPOTrainer"]

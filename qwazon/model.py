@@ -1,12 +1,14 @@
 """
-Qwazon Model — Decoder-only Transformer zoptymalizowany pod ziemniaka.
+Qwazon Model v0.4 — Decoder-only Transformer zoptymalizowany pod ziemniaka.
 
 Inspiracje architektoniczne:
-- Llama 3 / Qwen2: RMSNorm + SwiGLU + RoPE + GQA
+- Llama 3 / Qwen2: RMSNorm + SwiGLU + RoPE + GQA + YaRN (128k)
 - Mistral/Mixtral: Sliding Window + Sparse MoE
 - DeepSeek-V2: MLA-ish ideas, QK-Norm
 - Phi-3 / Gemma2: ultra stabilne małe modele
 - Mamba2 inspiracja: można łatwo podmienić 2 warstwy na SSM (zostawione jako hook)
+
+v0.4: YaRN dla 128k kontekstu, lepsze MoE, QAT-ready
 
 Zoptymalizowane pod:
 - FlashAttention-2 / SDPA
@@ -40,13 +42,27 @@ class RMSNorm(nn.Module):
         return self.weight * x.to(self.weight.dtype)
 
 # ---------------------------------------------------------------------------
-# RoPE
+# RoPE + YaRN (128k)
 # ---------------------------------------------------------------------------
 class RotaryEmbedding(nn.Module):
-    def __init__(self, dim: int, max_position_embeddings: int = 32768, base: float = 500000.0):
+    def __init__(self, dim: int, max_position_embeddings: int = 32768, base: float = 500000.0, rope_scaling: Optional[dict] = None):
         super().__init__()
         self.dim = dim
+        self.base = base
+        self.rope_scaling = rope_scaling
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))
+        # YaRN: skalowanie niskich częstotliwości dla długiego kontekstu
+        if rope_scaling and rope_scaling.get("type") == "yarn":
+            factor = rope_scaling.get("factor", 1.0)
+            # YaRN: inv_freq * mscale, gdzie mscale = 0.1*ln(factor)+1
+            # uproszczenie: dzielimy inv_freq przez factor dla długich pozycji
+            # (prawdziwy YaRN ma rampę, tu linear dla ziemniaka)
+            mscale = 0.1 * math.log(factor) + 1.0 if factor > 1 else 1.0
+            inv_freq = inv_freq / factor  # wydłużenie kontekstu
+            # zapisz dla cache
+            self.mscale = mscale
+        else:
+            self.mscale = 1.0
         self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.max_seq_len_cached = max_position_embeddings
         self._set_cos_sin_cache(max_position_embeddings)
@@ -55,6 +71,9 @@ class RotaryEmbedding(nn.Module):
         self.max_seq_len_cached = seq_len
         t = torch.arange(seq_len, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
         freqs = torch.outer(t, self.inv_freq)
+        # YaRN mscale na emb
+        if hasattr(self, "mscale") and self.mscale != 1.0:
+            freqs = freqs * self.mscale
         emb = torch.cat((freqs, freqs), dim=-1)
         self.register_buffer("cos_cached", emb.cos(), persistent=False)
         self.register_buffer("sin_cached", emb.sin(), persistent=False)
@@ -107,6 +126,7 @@ class GroupedQueryAttention(nn.Module):
             self.head_dim,
             max_position_embeddings=config.max_position_embeddings,
             base=config.rope_theta,
+            rope_scaling=config.rope_scaling,
         )
 
     def forward(

@@ -1,12 +1,12 @@
 """
-Przygotowanie danych dla Qwazona — filozofia złotego środka.
+Przygotowanie danych dla Qwazona — filozofia złotego środka v0.4.
 
 Nie potrzebujemy 15T tokenów. Potrzebujemy 100B, ale *krystalicznie* czystych.
-Miks v0.1:
+Miks v0.4 (50 syntetyków + prawdziwe dane):
   35% kod (The Stack v2 dedup + StarCoder2, filtrowany przez AST i testy)
   20% polski edukacyjny (FineWeb-PL + Wolne Lektury + WikiPL)
   15% angielski STEM (FineWeb-Edu)
-  10% CodeReasoning (syntetyczne CoT do kodu, generowane przez Claude/GPT-4)
+  10% CodeReasoning v4 (50 zadań CoT, bugfix, review, PL)
   10% Math (GSM8K, MATH, OrcaMath po polsku)
   10% dialogi / instrukcje (UltraFeedback PL, OASST PL)
 
@@ -16,16 +16,20 @@ Uruchom: python data/prepare.py --out data/train.jsonl --limit 10000 --demo
 import argparse, json, random, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-DEMO_DATA = [
-    {"text": "Pytanie: Napisz funkcję silnia w Pythonie.\nOdpowiedź: ```python\ndef silnia(n):\n    if n <= 1:\n        return 1\n    return n * silnia(n-1)\n```\nWyjaśnienie: rekurencja, przypadek bazowy n<=1, złożoność O(n)."},
-    {"text": "Pytanie: Co to jest closure w JavaScript?\nOdpowiedź: Closure to funkcja która pamięta swoje leksykalne otoczenie nawet gdy wykonuje się poza nim. Przykład: `function outer(x){ return function inner(y){ return x+y; }}`"},
-    {"text": "Pytanie: Odwróć listę w Pythonie bez .reverse().\nOdpowiedź: ```python\ndef reverse_list(arr):\n    return arr[::-1]  # slicing\n# lub\ndef reverse_loop(arr):\n    res = []\n    for i in range(len(arr)-1, -1, -1):\n        res.append(arr[i])\n    return res\n```"},
-    {"text": "System: Jesteś Qwazon, pomocny asystent kodowania. User: Napisz REST API w FastAPI dla todo. Assistant: ```python\nfrom fastapi import FastAPI\napp = FastAPI()\ntodos = []\n@app.get(\"/todos\")\ndef list_todos():\n    return todos\n@app.post(\"/todos\")\ndef add_todo(item: str):\n    todos.append(item)\n    return {\"ok\": True}\n```"},
-    {"text": "Polska leży w Europie Środkowej. Graniczy z Niemcami, Czechami, Słowacją, Ukrainą, Białorusią, Litwą i Rosją (obwód kaliningradzki). Stolica to Warszawa, ludność ~38 mln."},
-    {"text": "Zadanie: Dla tablicy liczb znajdź maksymalną sumę podtablicy (Kadane).\n```python\ndef max_subarray(nums):\n    cur = best = nums[0]\n    for x in nums[1:]:\n        cur = max(x, cur + x)\n        best = max(best, cur)\n    return best\n```\nZłożoność O(n), pamięć O(1)."},
-    {"text": "Wyjaśnij różnicę między procesem a wątkiem. Proces ma własną przestrzeń pamięci, wątek dzieli pamięć procesu. Wątki są lżejsze, ale wymagają synchronizacji."},
-    {"text": "SQL: znajdź użytkowników którzy kupili >3 produkty.\n```sql\nSELECT user_id, COUNT(*) as cnt\nFROM orders\nGROUP BY user_id\nHAVING COUNT(*) > 3;\n```"},
-]
+try:
+    from data.synthetic_v4 import SYNTHETIC_V4
+    DEMO_DATA = [{"text": t} for t in SYNTHETIC_V4]
+except ImportError:
+    DEMO_DATA = [
+        {"text": "Pytanie: Napisz funkcję silnia w Pythonie.\nOdpowiedź: ```python\ndef silnia(n):\n    if n <= 1:\n        return 1\n    return n * silnia(n-1)\n```\nWyjaśnienie: rekurencja, przypadek bazowy n<=1, złożoność O(n)."},
+        {"text": "Pytanie: Co to jest closure w JavaScript?\nOdpowiedź: Closure to funkcja która pamięta swoje leksykalne otoczenie nawet gdy wykonuje się poza nim. Przykład: `function outer(x){ return function inner(y){ return x+y; }}`"},
+        {"text": "Pytanie: Odwróć listę w Pythonie bez .reverse().\nOdpowiedź: ```python\ndef reverse_list(arr):\n    return arr[::-1]  # slicing\n# lub\ndef reverse_loop(arr):\n    res = []\n    for i in range(len(arr)-1, -1, -1):\n        res.append(arr[i])\n    return res\n```"},
+        {"text": "System: Jesteś Qwazon, pomocny asystent kodowania. User: Napisz REST API w FastAPI dla todo. Assistant: ```python\nfrom fastapi import FastAPI\napp = FastAPI()\ntodos = []\n@app.get(\"/todos\")\ndef list_todos():\n    return todos\n@app.post(\"/todos\")\ndef add_todo(item: str):\n    todos.append(item)\n    return {\"ok\": True}\n```"},
+        {"text": "Polska leży w Europie Środkowej. Graniczy z Niemcami, Czechami, Słowacją, Ukrainą, Białorusią, Litwą i Rosją (obwód kaliningradzki). Stolica to Warszawa, ludność ~38 mln."},
+        {"text": "Zadanie: Dla tablicy liczb znajdź maksymalną sumę podtablicy (Kadane).\n```python\ndef max_subarray(nums):\n    cur = best = nums[0]\n    for x in nums[1:]:\n        cur = max(x, cur + x)\n        best = max(best, cur)\n    return best\n```\nZłożoność O(n), pamięć O(1)."},
+        {"text": "Wyjaśnij różnicę między procesem a wątkiem. Proces ma własną przestrzeń pamięci, wątek dzieli pamięć procesu. Wątki są lżejsze, ale wymagają synchronizacji."},
+        {"text": "SQL: znajdź użytkowników którzy kupili >3 produkty.\n```sql\nSELECT user_id, COUNT(*) as cnt\nFROM orders\nGROUP BY user_id\nHAVING COUNT(*) > 3;\n```"},
+    ]
 
 def build_demo(out_path, limit=10000, repeat=1):
     # powiel demo data z wariacjami

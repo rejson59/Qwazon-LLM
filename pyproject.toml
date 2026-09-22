@@ -1,6 +1,6 @@
 [project]
 name = "qwazon-llm"
-version = "0.3.0"
+version = "0.4.0"
 description = "Qwazon — złoty środek między wydajnością a inteligencją. LLM na ziemniaka, mądry jak duży."
 readme = "README.md"
 requires-python = ">=3.9"

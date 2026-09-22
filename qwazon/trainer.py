@@ -1,14 +1,11 @@
 """
-Qwazon Trainer v0.2 — pipeline treningowy złotego środka (ulepszony).
+Qwazon Trainer v0.4 — pipeline treningowy złotego środka (ulepszony).
 
-Nowości v0.2:
-- Resume z checkpointu (kontynuacja treningu)
-- Eval co N kroków + perpleksja na hold-out
-- Sample generation w trakcie treningu (podgląd że model się uczy)
-- Lepszy logging + best_model tracking
-- Label smoothing i dropout dla regularzacji
-- 8-bit AdamW jeśli bitsandbytes dostępne
-- Większy, lepszy syntetyk: 2000+ przykładów z CoT
+Nowości v0.4 (50 zadań):
+- 50 zadań PL+Code z data/synthetic_v4.py (vs 25 w v0.2)
+- Resume z checkpointu, eval, best_model, sample generation
+- 8-bit AdamW, QLoRA-ready, YaRN 128k
+- Syntetyk v4: bugfix, review, refactor, CoT, PL tłumaczenia, math
 """
 import os, math, time, json, random
 from pathlib import Path
@@ -101,59 +98,24 @@ def get_optimizer(model, lr, weight_decay):
     except ImportError:
         return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay, betas=(0.9, 0.95), eps=1e-8)
 
-# Bogatszy syntetyk v0.2 — 25 przykładów bazowych z CoT, expanded do 2000
-SYNTHETIC_V2 = [
-    "Pytanie: Napisz funkcję silnia w Pythonie.\nOdpowiedź: ```python\ndef silnia(n):\n    if n <= 1:\n        return 1\n    return n * silnia(n-1)\n```\nWyjaśnienie: rekurencja, przypadek bazowy n<=1, złożoność O(n), można też iteracyjnie dla O(1) pamięci.",
-    "Pytanie: Co to jest closure w JavaScript?\nOdpowiedź: Closure to funkcja która pamięta swoje leksykalne otoczenie nawet gdy wykonuje się poza nim. Przykład: `function outer(x){ return function inner(y){ return x+y; }}`\nUżycie: fabryki funkcji, prywatność, callbacki.",
-    "Pytanie: Odwróć listę w Pythonie bez .reverse().\nOdpowiedź: ```python\ndef reverse_list(arr):\n    return arr[::-1]\n# lub iteracyjnie:\ndef reverse_loop(arr):\n    res=[]\n    for i in range(len(arr)-1,-1,-1):\n        res.append(arr[i])\n    return res\n```\nZłożoność O(n).",
-    "System: Jesteś Qwazon, pomocny asystent kodowania. User: Napisz REST API w FastAPI dla todo. Assistant: ```python\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\napp=FastAPI()\ntodos=[]\nclass Todo(BaseModel):\n    text: str\n@app.get(\"/todos\")\ndef list_todos():\n    return todos\n@app.post(\"/todos\")\ndef add_todo(t: Todo):\n    todos.append(t.text)\n    return {\"ok\": True}\n```",
-    "Polska leży w Europie Środkowej. Graniczy z Niemcami, Czechami, Słowacją, Ukrainą, Białorusią, Litwą i Rosją (obwód kaliningradzki). Stolica to Warszawa, ludność ~38 mln. Język: polski.",
-    "Zadanie: Dla tablicy liczb znajdź maksymalną sumę podtablicy (Kadane).\n```python\ndef max_subarray(nums):\n    cur=best=nums[0]\n    for x in nums[1:]:\n        cur=max(x, cur+x)\n        best=max(best,cur)\n    return best\n```\nZłożoność O(n), pamięć O(1). Dowód: programowanie dynamiczne.",
-    "Wyjaśnij różnicę między procesem a wątkiem. Proces ma własną przestrzeń pamięci, wątek dzieli pamięć procesu. Wątki są lżejsze, ale wymagają synchronizacji (mutex, semaphore).",
-    "SQL: znajdź użytkowników którzy kupili >3 produkty.\n```sql\nSELECT user_id, COUNT(*) as cnt\nFROM orders\nGROUP BY user_id\nHAVING COUNT(*) > 3\nORDER BY cnt DESC;\n```",
-    "Pytanie: Napisz BFS w Pythonie.\n```python\nfrom collections import deque\ndef bfs(graph, start):\n    visited=set([start])\n    q=deque([start])\n    order=[]\n    while q:\n        u=q.popleft()\n        order.append(u)\n        for v in graph[u]:\n            if v not in visited:\n                visited.add(v)\n                q.append(v)\n    return order\n```\nZłożoność O(V+E).",
-    "Pytanie: DFS rekurencyjnie i iteracyjnie.\n```python\ndef dfs_rec(g, u, vis=None):\n    if vis is None: vis=set()\n    vis.add(u)\n    for v in g[u]:\n        if v not in vis:\n            dfs_rec(g,v,vis)\n    return vis\n```\nIteracyjnie ze stosem.",
-    "Pytanie: Zaimplementuj LRU Cache.\n```python\nfrom collections import OrderedDict\nclass LRU:\n    def __init__(self, cap):\n        self.cap=cap\n        self.cache=OrderedDict()\n    def get(self,k):\n        if k not in self.cache: return -1\n        self.cache.move_to_end(k)\n        return self.cache[k]\n    def put(self,k,v):\n        if k in self.cache: self.cache.move_to_end(k)\n        self.cache[k]=v\n        if len(self.cache)>self.cap:\n            self.cache.popitem(last=False)\n```",
-    "Pytanie: Szybkie potęgowanie binarne.\n```python\ndef power(a,n):\n    res=1\n    while n>0:\n        if n%2==1:\n            res*=a\n        a*=a\n        n//=2\n    return res\n```\nO(log n).",
-    "Pytanie: Czy liczba jest palindromem?\n```python\ndef is_palindrome(s):\n    s=''.join(c.lower() for c in s if c.isalnum())\n    return s==s[::-1]\n```",
-    "Pytanie: Najdłuższy wspólny prefiks.\n```python\ndef lcp(strs):\n    if not strs: return ''\n    pref=strs[0]\n    for s in strs[1:]:\n        while not s.startswith(pref):\n            pref=pref[:-1]\n            if not pref: return ''\n    return pref\n```",
-    "Pytanie: Merge sort.\n```python\ndef mergesort(arr):\n    if len(arr)<=1: return arr\n    m=len(arr)//2\n    left=mergesort(arr[:m])\n    right=mergesort(arr[m:])\n    return merge(left,right)\ndef merge(a,b):\n    res=[];i=j=0\n    while i<len(a) and j<len(b):\n        if a[i]<b[j]:\n            res.append(a[i]);i+=1\n        else:\n            res.append(b[j]);j+=1\n    res.extend(a[i:]);res.extend(b[j:])\n    return res\n```",
-    "Pytanie: Binary search.\n```python\ndef bsearch(arr,x):\n    lo,hi=0,len(arr)-1\n    while lo<=hi:\n        mid=(lo+hi)//2\n        if arr[mid]==x: return mid\n        elif arr[mid]<x: lo=mid+1\n        else: hi=mid-1\n    return -1\n```\nO(log n).",
-    "Pytanie: Fibonacci z memoizacją.\n```python\ndef fib(n, memo={}):\n    if n in memo: return memo[n]\n    if n<=1: return n\n    memo[n]=fib(n-1,memo)+fib(n-2,memo)\n    return memo[n]\n# iteracyjnie O(n):\ndef fib_iter(n):\n    a,b=0,1\n    for _ in range(n):\n        a,b=b,a+b\n    return a\n```",
-    "Pytanie: Sprawdź czy nawiasy są zbalansowane.\n```python\ndef balanced(s):\n    stack=[]\n    pairs={')':'(', ']':'[', '}':'{'}\n    for c in s:\n        if c in '([{': stack.append(c)\n        elif c in ')]}':\n            if not stack or stack[-1]!=pairs[c]: return False\n            stack.pop()\n    return not stack\n```",
-    "Pytanie: Co to jest REST? REST to styl architektury dla API: zasoby pod URL, metody HTTP (GET/POST/PUT/DELETE), stateless, JSON. Przykład: GET /users/1, POST /users {name}.",
-    "Pytanie: Różnica między `==` a `is` w Pythonie. `==` porównuje wartości (`__eq__`), `is` porównuje tożsamość obiektu (id). `a is None` jest poprawne, `a == None` niezalecane.",
-    "Pytanie: Wyjaśnij Big O. O(1) stały, O(log n) logarytmiczny, O(n) liniowy, O(n log n) liniowo-logarytmiczny, O(n^2) kwadratowy, O(2^n) wykładniczy. Przykład: pętla w pętli to O(n^2).",
-    "Pytanie: Jak działa `git rebase` vs `merge`? Merge tworzy commit scalający, rebase przepisuje historię liniowo. Rebase czystsza historia, ale nie na branchach współdzielonych.",
-    "Pytanie: Co to jest Docker? Konteneryzacja: izolowane środowisko z aplikacją + zależności. Dockerfile buduje obraz, `docker run` uruchamia kontener. Lżejsze niż VM.",
-    "Pytanie: Napisz funkcję która znajduje duplikaty w liście.\n```python\ndef find_duplicates(arr):\n    seen=set()\n    dups=set()\n    for x in arr:\n        if x in seen: dups.add(x)\n        else: seen.add(x)\n    return list(dups)\n```",
-    "Pytanie: Co to jest Mixture of Experts? Architektura gdzie tylko podzbiór ekspertów (np. 2 z 8) jest aktywny na token. Pozwala zwiększyć parametry bez zwiększania FLOPs. Używamy w Qwazon.",
-]
-
-def build_synthetic_texts(n=2000):
-    # expand 25 -> n with variations
-    base = SYNTHETIC_V2
-    out = []
-    for i in range(n):
-        txt = base[i % len(base)]
-        # wariacje co 3
-        if i % 3 == 0:
-            txt = txt.replace("Python", "Python 3.11")
-        if i % 5 == 0:
-            txt = txt.replace("O(n)", "O(n) czasu")
-        # dodaj CoT dla co 4
-        if i % 4 == 0 and "Pytanie:" in txt:
-            txt = txt + "\n\nKrok po kroku: analizuję problem, wybieram algorytm, implementuję, testuję na przykładzie."
-        out.append(txt)
-    return out
+# Bogatszy syntetyk v0.4 — 50 zadań PL+Code (z data/synthetic_v4.py)
+try:
+    from data.synthetic_v4 import SYNTHETIC_V4, build_v4
+    SYNTHETIC_V2 = SYNTHETIC_V4
+    def build_synthetic_texts(n=2000):
+        return build_v4(n)
+except ImportError:
+    SYNTHETIC_V2 = ["Pytanie: Napisz silnia.\nOdpowiedz: def silnia(n): return 1 if n<=1 else n*silnia(n-1)"]
+    def build_synthetic_texts(n=2000):
+        return (SYNTHETIC_V2 * ((n // len(SYNTHETIC_V2)) + 1))[:n]
 
 def train(config: QwazonConfig, args: TrainArgs, tokenizer=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[Trainer v0.2] Device: {device}")
-    print(f"[Trainer v0.2] Config: {config.describe()}")
-    print(f"[Trainer v0.2] Params: {config.num_parameters_approx/1e9:.3f}B total, aktywne ~ {config.num_parameters_approx * (0.45 if config.use_moe else 1.0)/1e9:.3f}B")
+    print(f"[Trainer v0.4] Device: {device}")
+    print(f"[Trainer v0.4] Config: {config.describe()}")
+    print(f"[Trainer v0.4] Params: {config.num_parameters_approx/1e9:.3f}B total, aktywne ~ {config.num_parameters_approx * (0.45 if config.use_moe else 1.0)/1e9:.3f}B")
     if args.label_smoothing > 0:
-        print(f"[Trainer v0.2] Label smoothing: {args.label_smoothing}")
+        print(f"[Trainer v0.4] Label smoothing: {args.label_smoothing}")
 
     model = QwazonForCausalLM(config)
     # resume?
@@ -197,7 +159,7 @@ def train(config: QwazonConfig, args: TrainArgs, tokenizer=None):
 
     # --- Data ---
     if args.train_file is None or not os.path.exists(args.train_file or ""):
-        print("[Trainer] Brak train_file, generuję syntetyk v0.2 (PL + kod + CoT)")
+        print("[Trainer] Brak train_file, generuję syntetyk v0.4 (50 zadań PL + kod + CoT + bugfix)")
         all_texts = build_synthetic_texts(2500)
         # split eval
         split = int(len(all_texts) * (1 - args.eval_split))

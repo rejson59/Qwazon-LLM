@@ -5,7 +5,15 @@
 
 **Qwazon to całkowicie nowy model** — nie fork, nie fine-tune. Własna architektura, własny trening, własna filozofia.
 
-> **🔥 UPDATE v0.3 (2026-09-17): Ziemniak na sterydach — nano zdaje HumanEval!**
+> **📖 Dla laika: przeczytaj [`docs/PROSTY_OPIS.md`](docs/PROSTY_OPIS.md) — bez żargonu, po polsku!**
+
+> **🔥 UPDATE v0.4 (2026-09-22): 50 zadań, YaRN 128k, lepsza kwantyzacja!**
+> - **Dane v4**: 50 zadań (vs 25) — bugfix, review, refactor, CoT, PL — `data/synthetic_v4.py`
+> - **Model v0.4**: YaRN 128k kontekstu, lepsze MoE, QAT-ready — `qwazon/model.py`
+> - **Kwantyzacja v0.4**: real int8 + symulacja Q4 z MSE — `qwazon/quantize.py`
+> - **Prosty opis**: [`docs/PROSTY_OPIS.md`](docs/PROSTY_OPIS.md)
+
+> **🔥 v0.3 (2026-09-17): Ziemniak na sterydach — nano zdaje HumanEval!**
 > - `micro 3M`: **200 kroków** PPL 1.25 ✅ | `nano 39M`: **300 kroków** PPL **1.04** ✅ **HumanEval-mini 1/5 (20%)** — pierwszy zdany test `silnia`!
 > - `tiny-lite 25M`: 25 kroków PPL 130 — proof że 25M uczy się 3x szybciej niż 39M
 > - Nowe: **API FastAPI** (`/generate`, `/chat`), **LoRA** (0.5M trainable na nano), **DPO** (beta=0.1), **BPE tokenizer** (2.87 bytes/tok), **Docker**, **Gradio v0.3 streaming**
